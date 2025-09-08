@@ -1,0 +1,14 @@
+# AWS / S3 Credentials
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+
+# S3 Bucket
+S3_BUCKET=regdry-cdr-preprod-external-logging
+
+# SBI Custom S3 Endpoint
+AWS_ENDPOINT=https://s3storeagcl2-cdr.bank.sbi
+
+# Loki S3 Config Options
+S3_FORCE_PATH_STYLE=true
+S3_INSECURE=false
