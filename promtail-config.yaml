@@ -1,0 +1,26 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  http_server_read_timeout: 300s
+  http_server_write_timeout: 300s
+
+positions:
+  filename: /var/lib/promtail/positions.yaml
+  sync_period: 10s
+
+clients:
+  - url: http://distributor:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 10s
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: varlogs
+          __path__: /var/log/*.log
+    pipeline_stages:
+      - docker: {}
+      - cri: {}
