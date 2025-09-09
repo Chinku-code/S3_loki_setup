@@ -1,0 +1,205 @@
+version: "3.9"
+
+networks:
+  loki:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+services:
+  # ---------- WRITE PATH ----------
+  distributor:
+    image: grafana/loki:3.5.2
+    container_name: loki-distributor
+    command: -config.file=/etc/loki/distributor.yaml -target=distributor -config.expand-env=true
+    volumes:
+      - ./config/distributor.yaml:/etc/loki/distributor.yaml:ro
+      - ./data/distributor:/loki/data
+    env_file: [./.env]
+    networks: [loki]
+    depends_on: [ingester-1]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  ingester-1:
+    image: grafana/loki:3.5.2
+    container_name: loki-ingester-1
+    command: -config.file=/etc/loki/ingester.yaml -target=ingester -config.expand-env=true
+    volumes:
+      - ./config/ingester-s3.yaml:/etc/loki/ingester.yaml:ro
+      - ./data/ingester-1:/loki/data
+      - ./data/ingester-1/wal:/loki/wal
+    env_file: [./.env]
+    networks: [loki]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  ingester-2:
+    image: grafana/loki:3.5.2
+    container_name: loki-ingester-2
+    command: -config.file=/etc/loki/ingester.yaml -target=ingester -config.expand-env=true
+    volumes:
+      - ./config/ingester-s3.yaml:/etc/loki/ingester.yaml:ro
+      - ./data/ingester-2:/loki/data
+      - ./data/ingester-2/wal:/loki/wal
+    env_file: [./.env]
+    networks: [loki]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  ingester-3:
+    image: grafana/loki:3.5.2
+    container_name: loki-ingester-3
+    command: -config.file=/etc/loki/ingester.yaml -target=ingester -config.expand-env=true
+    volumes:
+      - ./config/ingester-s3.yaml:/etc/loki/ingester.yaml:ro
+      - ./data/ingester-3:/loki/data
+      - ./data/ingester-3/wal:/loki/wal
+    env_file: [./.env]
+    networks: [loki]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------- READ PATH ----------
+  querier:
+    image: grafana/loki:3.5.2
+    container_name: loki-querier
+    command: -config.file=/etc/loki/querier.yaml -target=querier -config.expand-env=true
+    volumes:
+      - ./config/querier-s3.yaml:/etc/loki/querier.yaml:ro
+      - ./data/querier:/loki/data
+    env_file: [./.env]
+    networks: [loki]
+    depends_on: [index-gateway]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  query-frontend:
+    image: grafana/loki:3.5.2
+    container_name: loki-query-frontend
+    command: -config.file=/etc/loki/query-frontend.yaml -target=query-frontend -config.expand-env=true
+    volumes:
+      - ./config/query-frontend-s3.yaml:/etc/loki/query-frontend.yaml:ro
+    env_file: [./.env]
+    networks: [loki]
+    depends_on: [querier]
+    ports:
+      - "3100:3100"   # expose Loki endpoint to host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------- BACKEND ----------
+  compactor:
+    image: grafana/loki:3.5.2
+    container_name: loki-compactor
+    command: -config.file=/etc/loki/compactor.yaml -target=compactor -config.expand-env=true
+    volumes:
+      - ./config/compactor-s3.yaml:/etc/loki/compactor.yaml:ro
+      - ./data/compactor:/loki/data
+    env_file: [./.env]
+    networks: [loki]
+    depends_on: [index-gateway]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  index-gateway:
+    image: grafana/loki:3.5.2
+    container_name: loki-index-gateway
+    command: -config.file=/etc/loki/index-gateway.yaml -target=index-gateway -config.expand-env=true
+    volumes:
+      - ./config/index-gateway-s3.yaml:/etc/loki/index-gateway.yaml:ro
+      - ./data/index-gateway:/loki/data
+    env_file: [./.env]
+    networks: [loki]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------- UI & AGENT ----------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: loki-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_LOG_LEVEL=info
+    networks: [loki]
+    depends_on: [query-frontend]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  promtail:
+    image: grafana/promtail:3.5.2
+    container_name: loki-promtail
+    command: -config.file=/etc/promtail/config.yaml
+    user: root
+    privileged: true
+    volumes:
+      - ./config/promtail-config.yaml:/etc/promtail/config.yaml:ro
+      - /var/log:/var/log:ro
+      - ./data/promtail:/var/lib/promtail
+    ports:
+      - "9080:9080"
+    networks: [loki]
+    depends_on: [distributor]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:9080/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+[root@drlogging1 Loki_Setup_S3]#
