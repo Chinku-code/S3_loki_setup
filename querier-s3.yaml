@@ -1,0 +1,60 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  path_prefix: /loki
+  replication_factor: 3
+  ring:
+    kvstore:
+      store: memberlist
+
+memberlist:
+  join_members:
+    - distributor:7946
+    - ingester-1:7946
+    - ingester-2:7946
+    - ingester-3:7946
+    - query-frontend:7946
+    - index-gateway:7946
+    - compactor:7946
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+    index_gateway_client:
+      server_address: dns:///index-gateway:9095
+  aws:
+    s3: ${AWS_S3_URL}
+    region: ${AWS_REGION}
+    bucketnames: ${S3_BUCKET}
+    s3forcepathstyle: ${S3_FORCE_PATH_STYLE:true}
+    endpoint: ${AWS_ENDPOINT:-}
+    insecure: ${S3_INSECURE:false}
+
+querier:
+  query_ingesters_within: 12h
+  max_concurrent: 16
+  compactor_grpc_address:
+dns:///loki-compactor:9095
+
+
+frontend_worker:
+  frontend_address: query-frontend:9095
+
+query_range:
+  align_queries_with_step: true
+  cache_results: false
