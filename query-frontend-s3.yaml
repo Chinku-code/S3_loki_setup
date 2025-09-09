@@ -1,0 +1,65 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  path_prefix: /loki
+  replication_factor: 3
+  ring:
+    kvstore:
+      store: memberlist
+
+memberlist:
+  join_members:
+    - distributor:7946
+    - ingester-1:7946
+    - ingester-2:7946
+    - ingester-3:7946
+    - querier:7946
+    - query-frontend:7946
+    - index-gateway:7946
+    - compactor:7946
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+#store:
+  #cache:
+      #backend: inmemory
+      #cache-generation-loader:
+        #compactor_address: loki-compactor:9095
+        #cache:
+          #shared_cache:
+            #enabled: true
+            #cache_control:
+              #max_size_mb: 100
+              #max_item_size_mb: 10
+              #mem_cache:
+                #size_mb: 50
+
+# Pull model: DO NOT set frontend.downstream_url
+limits_config:
+  tsdb_max_query_parallelism: 128
+  max_query_length: 720h
+  max_query_lookback: 720h
+  allow_deletes: false
+  retention_period: 0s
+
+query_scheduler:
+  max_outstanding_requests_per_tenant: 32768
+
+frontend:
+  log_queries_longer_than: 5s
+  compress_responses: true
+
+frontend_worker:
+  frontend_address: query-frontend:9095
