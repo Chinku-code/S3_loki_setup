@@ -1,0 +1,60 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  path_prefix: /loki
+  replication_factor: 3
+  ring:
+    kvstore:
+      store: memberlist
+
+memberlist:
+  join_members:
+    - distributor:7946
+    - ingester-1:7946
+    - ingester-2:7946
+    - ingester-3:7946
+    - querier:7946
+    - query-frontend:7946
+    - index-gateway:7946
+    - compactor:7946
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+    index_gateway_client:
+      server_address: dns:///index-gateway:9095
+  aws:
+    s3: ${AWS_S3_URL}
+    region: ${AWS_REGION}
+    bucketnames: ${S3_BUCKET}
+    s3forcepathstyle: ${S3_FORCE_PATH_STYLE:true}
+    endpoint: ${AWS_ENDPOINT:-}
+    insecure: ${S3_INSECURE:false}
+
+limits_config:
+  ingestion_rate_mb: 32
+  ingestion_burst_size_mb: 64
+  max_streams_per_user: 1000000
+  max_global_streams_per_user: 2000000
+  max_line_size: 2MB
+  max_query_length: 720h
+  max_query_parallelism: 32
+  max_streams_matchers_per_query: 1000
+  max_concurrent_tail_requests: 10
+  max_entries_limit_per_query: 5000
+  max_cache_freshness_per_query: 1m
